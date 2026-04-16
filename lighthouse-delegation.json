@@ -1,0 +1,270 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "mspOfferName": {
+      "type": "string",
+      "defaultValue": "Cloudpositive Read Access"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Globally unique name for the cost export storage account (3-24 chars, lowercase alphanumeric only)"
+      }
+    },
+    "storageLocation": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "allowedValues": [
+        "eastus",
+        "eastus2",
+        "westus",
+        "westus2",
+        "westeurope",
+        "northeurope",
+        "southeastasia",
+        "australiaeast",
+        "uksouth"
+      ],
+      "metadata": {
+        "description": "Azure region for the storage account and resource group"
+      }
+    },
+    "exportStartDate": {
+      "type": "string",
+      "defaultValue": "[utcNow('yyyy-MM-dd')]",
+      "metadata": {
+        "description": "Start date for the cost export schedule (current date)"
+      }
+    }
+  },
+  "variables": {
+    "managedByTenantId": "3786a4c8-7fc6-43ec-8021-3a9f2e997f7b",
+    "resourceGroupName": "rg-cloudpositive-donotdelete",
+    "authorizations": [
+      {
+        "principalId": "407c2462-5414-471f-a149-b1dd444bfe8f",
+        "principalIdDisplayName": "Cloudpositive App",
+        "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+      },
+      {
+        "principalId": "407c2462-5414-471f-a149-b1dd444bfe8f",
+        "principalIdDisplayName": "Cloudpositive App",
+        "roleDefinitionId": "72fafb9e-0641-4937-9268-a91bfd8191a3"
+      }
+    ],
+    "exportName": "cloudpositive-amortized-export",
+    "storageContainerName": "costexports",
+    "storageAccountId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('resourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('storageAccountName'))]",
+    "blobDataReaderRoleId": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "cloudpositiveAppPrincipalId": "407c2462-5414-471f-a149-b1dd444bfe8f"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('storageLocation')]",
+      "tags": {
+        "ManagedBy": "Cloudpositive",
+        "Purpose": "CostExports",
+        "Notice": "DO NOT DELETE - Required for Cloudpositive cost monitoring",
+        "Contact": "support@cloudpositive.io"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "cloudpositive-storage-deployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "storageAccountName": {
+            "value": "[parameters('storageAccountName')]"
+          },
+          "storageLocation": {
+            "value": "[parameters('storageLocation')]"
+          },
+          "storageContainerName": {
+            "value": "[variables('storageContainerName')]"
+          },
+          "blobDataReaderRoleId": {
+            "value": "[variables('blobDataReaderRoleId')]"
+          },
+          "cloudpositiveAppPrincipalId": {
+            "value": "[variables('cloudpositiveAppPrincipalId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "storageLocation": {
+              "type": "string"
+            },
+            "storageContainerName": {
+              "type": "string"
+            },
+            "blobDataReaderRoleId": {
+              "type": "string"
+            },
+            "cloudpositiveAppPrincipalId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2022-09-01",
+              "name": "[parameters('storageAccountName')]",
+              "location": "[parameters('storageLocation')]",
+              "tags": {
+                "ManagedBy": "Cloudpositive",
+                "Purpose": "CostExports",
+                "Notice": "DO NOT DELETE - Required for Cloudpositive cost monitoring"
+              },
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "encryption": {
+                  "services": {
+                    "blob": {
+                      "enabled": true
+                    }
+                  },
+                  "keySource": "Microsoft.Storage"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2022-09-01",
+              "name": "[concat(parameters('storageAccountName'), '/default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ],
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 30
+                },
+                "containerDeleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 30
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2022-09-01",
+              "name": "[concat(parameters('storageAccountName'), '/default/', parameters('storageContainerName'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+              ],
+              "properties": {
+                "publicAccess": "None"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(parameters('storageAccountName'), parameters('storageContainerName'), parameters('blobDataReaderRoleId'), parameters('cloudpositiveAppPrincipalId'))]",
+              "scope": "[concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName'), '/blobServices/default/containers/', parameters('storageContainerName'))]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default', parameters('storageContainerName'))]"
+              ],
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('blobDataReaderRoleId'))]",
+                "principalId": "[parameters('cloudpositiveAppPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.ManagedServices/registrationDefinitions",
+      "apiVersion": "2020-02-01-preview",
+      "name": "[guid(parameters('mspOfferName'))]",
+      "properties": {
+        "registrationDefinitionName": "[parameters('mspOfferName')]",
+        "description": "Read-only access with Cost Management for Cloudpositive monitoring",
+        "managedByTenantId": "[variables('managedByTenantId')]",
+        "authorizations": "[variables('authorizations')]"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedServices/registrationAssignments",
+      "apiVersion": "2020-02-01-preview",
+      "name": "[guid(parameters('mspOfferName'), 'assignment')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedServices/registrationDefinitions', guid(parameters('mspOfferName')))]"
+      ],
+      "properties": {
+        "registrationDefinitionId": "[resourceId('Microsoft.ManagedServices/registrationDefinitions', guid(parameters('mspOfferName')))]"
+      }
+    },
+    {
+      "type": "Microsoft.CostManagement/exports",
+      "apiVersion": "2024-08-01",
+      "name": "[variables('exportName')]",
+      "location": "global",
+      "dependsOn": [
+        "cloudpositive-storage-deployment"
+      ],
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "displayName": "Cloudpositive Amortized Cost Export",
+        "dataOverwriteBehavior": "OverwritePreviousReport",
+        "definition": {
+          "type": "AmortizedCost",
+          "timeframe": "MonthToDate",
+          "dataSet": {
+            "granularity": "Daily"
+          }
+        },
+        "schedule": {
+          "status": "Active",
+          "recurrence": "Daily",
+          "recurrencePeriod": {
+            "from": "[parameters('exportStartDate')]",
+            "to": "2099-12-31T00:00:00Z"
+          }
+        },
+        "format": "Parquet",
+        "partitionData": true,
+        "deliveryInfo": {
+          "destination": {
+            "resourceId": "[variables('storageAccountId')]",
+            "container": "[variables('storageContainerName')]",
+            "rootFolderPath": "exports"
+          },
+          "dataExportDatasetConfiguration": {
+            "compressionMode": "Snappy"
+          }
+        }
+      }
+    }
+  ]
+}
+
+
