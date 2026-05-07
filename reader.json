@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "mspRegistrationName": "[guid('lighthouse-blob-reader-offer')]",
+    "mspAssignmentName": "[guid('lighthouse-blob-reader-assignment')]",
+    "managedByTenantId": "96ef3ab3-6828-4277-acc9-58523d6d9261",
+    "authorizations": [
+      {
+        "principalId": "14b1086a-9b18-4bfb-b078-d8efdb5b4528",
+        "principalIdDisplayName": "My Managed Identity - Blob Reader",
+        "roleDefinitionId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+        "delegatedRoleDefinitionIds": [
+          "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+        ]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedServices/registrationDefinitions",
+      "apiVersion": "2020-02-01-preview",
+      "name": "[variables('mspRegistrationName')]",
+      "properties": {
+        "registrationDefinitionName": "Blob Read Access - Cloudpositive",
+        "description": "Grants read-only access to blob storage for Cloudpositive managed identity",
+        "managedByTenantId": "[variables('managedByTenantId')]",
+        "authorizations": "[variables('authorizations')]"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedServices/registrationAssignments",
+      "apiVersion": "2020-02-01-preview",
+      "name": "[variables('mspAssignmentName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]"
+      ],
+      "properties": {
+        "registrationDefinitionId": "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]"
+      }
+    }
+  ],
+  "outputs": {
+    "mspRegistrationName": {
+      "type": "string",
+      "value": "[variables('mspRegistrationName')]"
+    }
+  }
+}
