@@ -19,25 +19,23 @@
       "metadata": {
         "description": "Your (provider) Azure AD Tenant ID"
       }
-    },
-    "authorizations": {
-      "value": [
-        {
-          "principalId": "36725bc0-472e-4648-a38a-7af2622217ae",
-          "principalIdDisplayName": "MyCompany Storage Automation SP",
-          "roleDefinitionId": "17d1049b-9a84-46fb-8f53-869881c3d3ab"
-        },
-        {
-          "principalId": "36725bc0-472e-4648-a38a-7af2622217ae",
-          "principalIdDisplayName": "MyCompany Storage Automation SP",
-          "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7"
-        }
-      ]
     }
   },
   "variables": {
     "mspRegistrationName": "[guid(parameters('mspOfferName'))]",
-    "mspAssignmentName": "[guid(parameters('mspOfferName'), 'assignment')]"
+    "mspAssignmentName": "[guid(parameters('mspOfferName'), 'assignment')]",
+    "authorizations": [
+      {
+        "principalId": "36725bc0-472e-4648-a38a-7af2622217ae",
+        "principalIdDisplayName": "MyCompany Storage Automation SP",
+        "roleDefinitionId": "17d1049b-9a84-46fb-8f53-869881c3d3ab"
+      },
+      {
+        "principalId": "36725bc0-472e-4648-a38a-7af2622217ae",
+        "principalIdDisplayName": "MyCompany Storage Automation SP",
+        "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+      }
+    ]
   },
   "resources": [
     {
@@ -48,7 +46,7 @@
         "registrationDefinitionName": "[parameters('mspOfferName')]",
         "description": "[parameters('mspOfferDescription')]",
         "managedByTenantId": "[parameters('managedByTenantId')]",
-        "authorizations": "[parameters('authorizations')]"
+        "authorizations": "[variables('authorizations')]"
       }
     },
     {
@@ -70,7 +68,7 @@
     },
     "authorizations": {
       "type": "array",
-      "value": "[parameters('authorizations')]"
+      "value": "[variables('authorizations')]"
     }
   }
 }
