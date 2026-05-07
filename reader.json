@@ -4,32 +4,29 @@
   "parameters": {
     "storageAccountName": {
       "type": "string",
-      "metadata": { "description": "Client's storage account name" }
+      "metadata": { "description": "Existing storage account in the client's subscription" }
     },
-    "externalPrincipalId": {
+    "isvPrincipalId": {
       "type": "string",
-      "metadata": { "description": "The principalId (Object ID) of your user-assigned MI from Template 1" }
+      "metadata": { "description": "Object (principal) ID of the ISV's user-assigned managed identity" }
     },
     "roleDefinitionId": {
       "type": "string",
-      "defaultValue": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-      "metadata": {
-        "description": "Built-in role ID. Default = Storage Blob Data Reader. Use 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' for Contributor."
-      }
+      "defaultValue": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+      "metadata": { "description": "Built-in role: Storage Blob Data Contributor" }
     }
   },
   "variables": {
-    "roleAssignmentName": "[guid(parameters('storageAccountName'), parameters('externalPrincipalId'), parameters('roleDefinitionId'))]"
+    "roleAssignmentName": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('isvPrincipalId'), parameters('roleDefinitionId'))]"
   },
   "resources": [
     {
-      "type": "Microsoft.Authorization/roleAssignments",
+      "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[variables('roleAssignmentName')]",
-      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+      "name": "[concat(parameters('storageAccountName'), '/Microsoft.Authorization/', variables('roleAssignmentName'))]",
       "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
-        "principalId": "[parameters('externalPrincipalId')]",
+        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', parameters('roleDefinitionId'))]",
+        "principalId": "[parameters('isvPrincipalId')]",
         "principalType": "ServicePrincipal"
       }
     }
